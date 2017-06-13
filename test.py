@@ -1,91 +1,57 @@
-import s3v2
 import mock
-import boto3
 import unittest
-
-orig_client = boto3.client
-
-class TestS3(unittest.TestCase):
-
-    def tearDown(self):
-        boto3.client = orig_client
+import googledrive
+import apiclient
+import oauth2client
+import requests_mock
 
 
-    def test_credentials(self):
-        "aws key and secret are passed to the s3 client"
+p = [p for p in googledrive.CONFIG['params'] if p['type'] == 'oauth'][0]
+REFRESH_URL = p['oauthRefreshURL']
 
-        boto3.client = mock.MagicMock()
-        s3v2.S3({
-            "addr": "s3://panoply-test",
-            "awskey": "S3-KEY",
-            "awssecret": "S3-SECRET"
-            # "awskey": "AKIAIHL3ZLRO7LOIVTVQ",
-            # "awssecret": "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"
-        }, {})
 
-        boto3.client.assert_called_once_with("s3",
-            aws_access_key_id = "S3-KEY",
-            aws_secret_access_key = "S3-SECRET"
-        )
+class TestGD(unittest.TestCase):
+
+    def test_refresh_token(self):
+        "OAuth2 refreshes the token"
+
+        with requests_mock.mock() as m:
+            m.post(REFRESH_URL, text='{"access_token":"654321"}')
+
+            s = googledrive.Stream({
+                "type": "googledrive",
+                "files": [{u'id': u'12345', u'name': u'file1.csv'}]
+            }, {'refresh':{}})
+
+        self.assertEqual(s.source['access_token'], "654321")
 
     def test_get_files(self):
-        "retrieves the list of files by address prefix"
+        "retrieves the list of files from google drive"
 
-        m = Object()
-        m.list_objects = mock.MagicMock(return_value = {
-            "Contents": [{
-                "Key": "1234.csv",
-                "E-Tag": "aabbff"
+        res = {
+            "nextPageToken": None,
+            "files": [{
+                "name": "1234.csv",
+                "id": "aabbff"
             }, {
-                "Key": "5678.json",
-                "E-Tag": "aabbff"
+                "name": "5678.json",
+                "id": "aabbff"
             }]
-        })
+        }
 
-        boto3.client = mock.MagicMock(return_value = m)
-        files = s3v2.S3({
-            "addr": "s3://panoply-test/myfiles/",
-            "awskey": "S3-KEY",
-            "awssecret": "S3-SECRET",
-            "files": None
-        }, {}).get_files()
+        apiclient.discovery.build = mock.MagicMock()
+        with mock.patch('apiclient.http.HttpRequest.execute') as mock_exec:
+            mock_exec.return_value = res
+            try:
+                files = googledrive.Stream({
+                    "type": "googledrive",
+                    "access_token": "654321",
+                    "files": [{u'id': u'12345', u'name': u'file1.csv'}]
+                }, {'refresh':{}}).get_files()
+            except oauth2client.client.AccessTokenCredentialsError:
+                pass
 
-        m.list_objects.assert_called_once_with(
-            Bucket = "panoply-test",
-            Prefix = "myfiles/"
-        )
-
-        self.assertEqual(files, ["1234.csv", "5678.json"])
-
-
-    def test_read_file(self):
-        "reads the data from the file"
-
-        f = Object()
-        f.read = mock.MagicMock(return_value = "hello,world")
-
-        m = Object()
-        m.get_object = mock.MagicMock(return_value = {
-            "Body": f
-        })
-
-        boto3.client = mock.MagicMock(return_value = m)
-        s = s3v2.S3({
-            "addr": "s3://panoply-test",
-            "awskey": "S3-KEY",
-            "awssecret": "S3-SECRET",
-            "files": [
-                "roi/t123"
-            ]
-        }, {})
-
-        data = s.read()
-        self.assertEqual(data, "hello,world")
-        m.get_object.assert_called_once_with(
-            Bucket = "panoply-test",
-            Key = "roi/t123"
-        )
-
+        self.assertEqual(files, res['files'])
 
 
 # empty object, used for mocking

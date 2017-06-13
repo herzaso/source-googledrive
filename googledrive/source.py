@@ -1,12 +1,9 @@
 import panoply
 import httplib2
+from conf import CONFIG
 from apiclient.discovery import build
 from oauth2client.client import AccessTokenCredentials
-
-# TODO: implement call function from dataSource (call a function from the
-# outside and return the result to a callback)
-# TODO: check the CSV the fails in GD (unicode)
-# TODO: validate_token should revalidate the token every time (regardless of its state)
+from panoply.errors import PanoplyException
 
 # check https://developers.google.com/drive/v3/web/integrate-open for
 # a list of available mime types
@@ -18,38 +15,45 @@ MIME_TYPES = ['text/csv',
 # 'application/vnd.ms-excel'
 # 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
+# get the refresh URL from the data source configuration
+p = [p for p in CONFIG['params'] if p['type'] == 'oauth'][0]
+REFRESH_URL = p['oauthRefreshURL']
 
 class GD(panoply.DataSource):
-    def __init__(self, source, options):
-        super(GD, self).__init__(source, options)
+    def __init__(self, source, options, *args, **kwargs):
+        super(GD, self).__init__(source, options, *args, **kwargs)
 
-        self._query = ' or '.join(['mimeType=\'{}\''
-                                   .format(m) for m in MIME_TYPES])
+        # fetch only non trashed files with acceptable mime types
+        self._query = 'and'.join([
+            'trashed = false',
+            ' or '.join(['mimeType=\'{}\''
+                        .format(m) for m in MIME_TYPES])
+        ])
 
         files = source.get("files") or []
         self._files = files[:]
         self._service = None
-        self._init_service(source.get("access_token"))
+        self._init_service()
 
-    def _init_service(self, access_token):
-        creds = AccessTokenCredentials(access_token, 'panoply/1.0')
+    @panoply.invalidate_token(REFRESH_URL)
+    def _init_service(self, token=None):
+        token = token or self.source.get("access_token")
+        creds = AccessTokenCredentials(token, 'panoply/1.0')
         http = creds.authorize(http=httplib2.Http())
         self._service = build('drive', 'v3', http=http)
 
-    @panoply.validate_token('_init_service')
+    @panoply.invalidate_token(REFRESH_URL, '_init_service')
     def read(self, n=None):
         if len(self._files) == 0:
             return None # no files left, we're done
 
         file = self._files.pop(0)
+        id = file['id']
         print("Reading File {}".format(file))
-
-        content = self._service.files().get_media(fileId=file['id']).execute()
-        print(content)
-        return content
+        return self._service.files().get_media(fileId=id).execute()
 
     # read the next batch of data
-    @panoply.validate_token('_init_service')
+    @panoply.invalidate_token(REFRESH_URL, '_init_service')
     def get_files(self):
         result = []
         page_token = None
@@ -68,6 +72,8 @@ class GD(panoply.DataSource):
                 break
 
         if not result:
-            raise Exception("No supported files detected")
+            raise PanoplyException(
+                'No supported files detected',
+                retryable=False)
 
         return result
