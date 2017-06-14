@@ -20,8 +20,8 @@ p = [p for p in CONFIG['params'] if p['type'] == 'oauth'][0]
 REFRESH_URL = p['oauthRefreshURL']
 
 class GD(panoply.DataSource):
-    def __init__(self, source, options, *args, **kwargs):
-        super(GD, self).__init__(source, options, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super(GD, self).__init__(*args, **kwargs)
 
         # fetch only non trashed files with acceptable mime types
         self._query = 'and'.join([
@@ -30,8 +30,9 @@ class GD(panoply.DataSource):
                         .format(m) for m in MIME_TYPES])
         ])
 
-        files = source.get("files") or []
+        files = self.source.get("files", [])
         self._files = files[:]
+        self._total = len(self._files)
         self._service = None
         self._init_service()
 
@@ -48,8 +49,14 @@ class GD(panoply.DataSource):
             return None # no files left, we're done
 
         file = self._files.pop(0)
-        print("Reading File {}".format(file))
-        return self._service.files().get_media(fileId=file['id']).execute()
+        self.log("Reading File {}".format(file))
+        content = self._service.files().get_media(fileId=file['id']).execute()
+
+        count = self._total - len(self._files)
+        msg = '{}/{} files loaded'.format(count, self._total)
+        self.progress(count, self._total, msg)
+
+        return content
 
     # read the next batch of data
     @panoply.invalidate_token(REFRESH_URL, '_init_service')
