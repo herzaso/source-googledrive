@@ -48,9 +48,8 @@ class GD(panoply.DataSource):
             return None # no files left, we're done
 
         file = self._files.pop(0)
-        id = file['id']
         print("Reading File {}".format(file))
-        return self._service.files().get_media(fileId=id).execute()
+        return self._service.files().get_media(fileId=file['id']).execute()
 
     # read the next batch of data
     @panoply.invalidate_token(REFRESH_URL, '_init_service')
