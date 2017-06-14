@@ -1,2 +1,2 @@
-# sources-googledrive
-Google Drive Panoply Data Source
+# source-googledrive
+A Panoply.io data source for google drive
