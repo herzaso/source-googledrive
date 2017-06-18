@@ -1,6 +1,6 @@
 import panoply
 import httplib2
-from conf import CONFIG
+from conf import CONFIG, REFRESH_URL
 from apiclient.discovery import build
 from oauth2client.client import AccessTokenCredentials
 from panoply.errors import PanoplyException
@@ -15,11 +15,7 @@ MIME_TYPES = ['text/csv',
 # 'application/vnd.ms-excel'
 # 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
-# get the refresh URL from the data source configuration
-p = [p for p in CONFIG['params'] if p['type'] == 'oauth'][0]
-REFRESH_URL = p['oauthRefreshURL']
-
-class GD(panoply.DataSource):
+class GoogleDrive(panoply.DataSource):
     def __init__(self, *args, **kwargs):
         super(GD, self).__init__(*args, **kwargs)
 
@@ -30,7 +26,7 @@ class GD(panoply.DataSource):
                         .format(m) for m in MIME_TYPES])
         ])
 
-        files = self.source.get("files", [])
+        files = self.source.get('files', [])
         self._files = files[:]
         self._total = len(self._files)
         self._service = None
@@ -38,7 +34,7 @@ class GD(panoply.DataSource):
 
     @panoply.invalidate_token(REFRESH_URL)
     def _init_service(self, token=None):
-        token = token or self.source.get("access_token")
+        token = token or self.source.get('access_token')
         creds = AccessTokenCredentials(token, 'panoply/1.0')
         http = creds.authorize(http=httplib2.Http())
         self._service = build('drive', 'v3', http=http)
@@ -49,7 +45,7 @@ class GD(panoply.DataSource):
             return None # no files left, we're done
 
         file = self._files.pop(0)
-        self.log("Reading File {}".format(file))
+        self.log('Reading File {}'.format(file))
         content = self._service.files().get_media(fileId=file['id']).execute()
 
         count = self._total - len(self._files)
