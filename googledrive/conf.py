@@ -16,7 +16,7 @@ CONFIG = {
         },
         {
             'name': 'refresh_token',
-            'type': 'hidden',
+            'type': '',
             'hidden': True
         },
         {

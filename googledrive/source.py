@@ -1,6 +1,8 @@
 import panoply
 import httplib2
+import io
 from conf import CONFIG, REFRESH_URL
+from apiclient.http import MediaIoBaseDownload
 from apiclient.discovery import build
 from oauth2client.client import AccessTokenCredentials
 from panoply.errors import PanoplyException
@@ -46,13 +48,20 @@ class GoogleDrive(panoply.DataSource):
 
         file = self._files.pop(0)
         self.log('Reading File {}'.format(file))
-        content = self._service.files().get_media(fileId=file['id']).execute()
 
         count = self._total - len(self._files)
         msg = '{}/{} files loaded'.format(count, self._total)
-        self.progress(count, self._total, msg)
 
-        return content
+        # download the file
+        request = self._service.files().get_media(fileId=file['id'])
+        fh = io.BytesIO()
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            self.progress(count, self._total, msg)
+
+        return fh.readall()
 
     # read the next batch of data
     @panoply.invalidate_token(REFRESH_URL, '_init_service')
