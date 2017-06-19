@@ -17,7 +17,7 @@ MIME_TYPES = ['text/csv',
 
 class GoogleDrive(panoply.DataSource):
     def __init__(self, *args, **kwargs):
-        super(GD, self).__init__(*args, **kwargs)
+        super(GoogleDrive, self).__init__(*args, **kwargs)
 
         # fetch only non trashed files with acceptable mime types
         self._query = 'and'.join([

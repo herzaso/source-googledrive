@@ -6,17 +6,13 @@ import oauth2client
 import requests_mock
 
 
-p = [p for p in googledrive.CONFIG['params'] if p['type'] == 'oauth'][0]
-REFRESH_URL = p['oauthRefreshURL']
-
-
-class TestGD(unittest.TestCase):
+class TestGoogleDrive(unittest.TestCase):
 
     def test_refresh_token(self):
         "OAuth2 refreshes the token"
 
         with requests_mock.mock() as m:
-            m.post(REFRESH_URL, text='{"access_token":"654321"}')
+            m.post(googledrive.REFRESH_URL, text='{"access_token":"654321"}')
 
             s = googledrive.Stream({
                 "type": "googledrive",
