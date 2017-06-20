@@ -8,7 +8,7 @@ setup(
     author_email="ofirh@panoply.io",
     url="http://panoply.io",
     install_requires=[
-        "panoply-python-sdk==1.3.3",
+        "panoply-python-sdk==1.3.4",
         "google-api-python-client==1.6.2",
         "mock==2.0.0",
         "httplib2==0.10.3",
