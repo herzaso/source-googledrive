@@ -7,6 +7,11 @@ from apiclient.discovery import build
 from oauth2client.client import AccessTokenCredentials
 from panoply.errors import PanoplyException
 
+# silence warnings from oauth2client logger
+import logging
+_helpers_log = logging.getLogger('oauth2client._helpers')
+_helpers_log.addHandler(logging.NullHandler())
+
 # check https://developers.google.com/drive/v3/web/integrate-open for
 # a list of available mime types
 MIME_TYPES = ['text/csv',
@@ -16,6 +21,9 @@ MIME_TYPES = ['text/csv',
               'application/tar']
 # 'application/vnd.ms-excel'
 # 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+CHUNK_SIZE = 0.5 * 1024 * 1024 # 0.5MB
+BATCH_MAX_SIZE = 5 * 1024 * 1024 # 5MB
 
 class GoogleDrive(panoply.DataSource):
     def __init__(self, *args, **kwargs):
@@ -33,6 +41,8 @@ class GoogleDrive(panoply.DataSource):
         self._total = len(self._files)
         self._service = None
         self._init_service()
+        self.fh = None # file handler
+        self.downloader = None
 
     @panoply.invalidate_token(REFRESH_URL)
     def _init_service(self, token=None):
@@ -46,22 +56,38 @@ class GoogleDrive(panoply.DataSource):
         if len(self._files) == 0:
             return None # no files left, we're done
 
-        file = self._files.pop(0)
-        self.log('Reading File {}'.format(file))
-
+        file = self._files[0]
         count = self._total - len(self._files)
         msg = '{}/{} files loaded'.format(count, self._total)
 
-        # download the file
-        request = self._service.files().get_media(fileId=file['id'])
-        fh = io.BytesIO()
-        downloader = MediaIoBaseDownload(fh, request)
+        # if we're not in the middle of downloading a file, start downloading
+        if not self.fh or not self.downloader:
+            request = self._service.files().get_media(fileId=file['id'])
+            self.fh = io.BytesIO()
+            self.downloader = MediaIoBaseDownload(self.fh, request, CHUNK_SIZE)
+        else:
+            # otherwise, just truncate the content - get ready to a new batch
+            self.fh.seek(0)
+            self.fh.truncate()
+
+        # read until BATCH_MAX_SIZE is reached
+        # notice that the chunks are quite big
         done = False
-        while not done:
-            status, done = downloader.next_chunk()
+        content = ''
+        while not done and len(content) < BATCH_MAX_SIZE:
+            status, done = self.downloader.next_chunk()
+            content = self.fh.getvalue()
             self.progress(count, self._total, msg)
 
-        return fh.readall()
+        self.log('Read {} bytes from file {}'
+                 .format(len(content), file['name']))
+
+        if done:
+            self._files.pop()
+            self.fh = None
+            self.downloader = None
+
+        return content
 
     # read the next batch of data
     @panoply.invalidate_token(REFRESH_URL, '_init_service')
