@@ -19,8 +19,6 @@ MIME_TYPES = ['text/csv',
               'application/vnd.google-apps.script+json',
               'application/zip',
               'application/tar']
-# 'application/vnd.ms-excel'
-# 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
 CHUNK_SIZE = 0.5 * 1024 * 1024 # 0.5MB
 BATCH_MAX_SIZE = 5 * 1024 * 1024 # 5MB
