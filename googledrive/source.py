@@ -87,7 +87,6 @@ class GoogleDrive(panoply.DataSource):
 
         return content
 
-    # read the next batch of data
     @panoply.invalidate_token(REFRESH_URL, '_init_service')
     def get_files(self):
         result = []
