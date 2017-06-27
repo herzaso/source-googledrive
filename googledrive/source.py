@@ -22,10 +22,13 @@ MIME_TYPES = ['text/csv',
 
 CHUNK_SIZE = 0.5 * 1024 * 1024 # 0.5MB
 BATCH_MAX_SIZE = 5 * 1024 * 1024 # 5MB
+DEST = 'google_drive'
 
 class GoogleDrive(panoply.DataSource):
     def __init__(self, *args, **kwargs):
         super(GoogleDrive, self).__init__(*args, **kwargs)
+
+        self.source["destination"] = self.source.get("destination") or DEST
 
         # fetch only non trashed files with acceptable mime types
         self._query = 'and'.join([
@@ -38,13 +41,12 @@ class GoogleDrive(panoply.DataSource):
         self._files = files[:]
         self._total = len(self._files)
         self._service = None
-        self._init_service()
+        self._init_service(self.source.get('access_token'))
         self.fh = None # file handler
         self.downloader = None
 
     @panoply.invalidate_token(REFRESH_URL)
     def _init_service(self, token=None):
-        token = token or self.source.get('access_token')
         creds = AccessTokenCredentials(token, 'panoply/1.0')
         http = creds.authorize(http=httplib2.Http())
         self._service = build('drive', 'v3', http=http)
