@@ -48,13 +48,13 @@ class GoogleDrive(panoply.DataSource):
         self.fh = None # file handler
         self.downloader = None
 
-    @panoply.validate_token(REFRESH_URL, exceptions=ERRORS)
+    @panoply.validate_token(REFRESH_URL, ERRORS)
     def _init_service(self, token=None):
         creds = AccessTokenCredentials(token, 'panoply/1.0')
         http = creds.authorize(http=httplib2.Http())
         self._service = build('drive', 'v3', http=http)
 
-    @panoply.validate_token(REFRESH_URL, '_init_service', exceptions=ERRORS)
+    @panoply.validate_token(REFRESH_URL, ERRORS, '_init_service')
     def read(self, n=None):
         if len(self._files) == 0:
             return None # no files left, we're done
@@ -92,7 +92,7 @@ class GoogleDrive(panoply.DataSource):
 
         return content
 
-    @panoply.validate_token(REFRESH_URL, '_init_service', exceptions=ERRORS)
+    @panoply.validate_token(REFRESH_URL, ERRORS, '_init_service')
     def get_files(self):
         result = []
         page_token = None
