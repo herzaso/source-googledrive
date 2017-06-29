@@ -5,21 +5,10 @@ import apiclient
 import oauth2client
 import requests_mock
 
+from panoply.errors import PanoplyException
+
 
 class TestGoogleDrive(unittest.TestCase):
-
-    def test_refresh_token(self):
-        "OAuth2 refreshes the token"
-
-        with requests_mock.mock() as m:
-            m.post(googledrive.REFRESH_URL, text='{"access_token":"654321"}')
-
-            s = googledrive.Stream({
-                "type": "googledrive",
-                "files": [{u'id': u'12345', u'name': u'file1.csv'}]
-            }, {'refresh':{}})
-
-        self.assertEqual(s.source['access_token'], "654321")
 
     def test_get_files(self):
         "retrieves the list of files from google drive"

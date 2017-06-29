@@ -4,7 +4,8 @@ import io
 from conf import CONFIG, REFRESH_URL
 from apiclient.http import MediaIoBaseDownload
 from apiclient.discovery import build
-from oauth2client.client import AccessTokenCredentials
+from oauth2client.client import AccessTokenCredentials, \
+                                AccessTokenCredentialsError
 from panoply.errors import PanoplyException
 
 # silence warnings from oauth2client logger
@@ -23,6 +24,8 @@ MIME_TYPES = ['text/csv',
 CHUNK_SIZE = 0.5 * 1024 * 1024 # 0.5MB
 BATCH_MAX_SIZE = 5 * 1024 * 1024 # 5MB
 DEST = 'google_drive'
+ERRORS = (AccessTokenCredentialsError)
+
 
 class GoogleDrive(panoply.DataSource):
     def __init__(self, *args, **kwargs):
@@ -45,13 +48,13 @@ class GoogleDrive(panoply.DataSource):
         self.fh = None # file handler
         self.downloader = None
 
-    @panoply.invalidate_token(REFRESH_URL)
+    @panoply.validate_token(REFRESH_URL, exceptions=ERRORS)
     def _init_service(self, token=None):
         creds = AccessTokenCredentials(token, 'panoply/1.0')
         http = creds.authorize(http=httplib2.Http())
         self._service = build('drive', 'v3', http=http)
 
-    @panoply.invalidate_token(REFRESH_URL, '_init_service')
+    @panoply.validate_token(REFRESH_URL, '_init_service', exceptions=ERRORS)
     def read(self, n=None):
         if len(self._files) == 0:
             return None # no files left, we're done
@@ -89,7 +92,7 @@ class GoogleDrive(panoply.DataSource):
 
         return content
 
-    @panoply.invalidate_token(REFRESH_URL, '_init_service')
+    @panoply.validate_token(REFRESH_URL, '_init_service', exceptions=ERRORS)
     def get_files(self):
         result = []
         page_token = None
