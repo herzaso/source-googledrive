@@ -32,15 +32,12 @@ class TestGoogleDrive(unittest.TestCase):
                     "type": "googledrive",
                     "access_token": "654321",
                     "files": [{u'id': u'12345', u'name': u'file1.csv'}]
-                }, {'refresh':{}}).get_files()
+                }, {'refresh': {}}).get_files()
             except oauth2client.client.AccessTokenCredentialsError:
                 pass
 
         self.assertEqual(files, res['files'])
 
-
-# empty object, used for mocking
-class Object(object): pass
 
 # fire it up.
 if __name__ == "__main__":

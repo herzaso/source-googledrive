@@ -21,8 +21,8 @@ MIME_TYPES = ['text/csv',
               'application/zip',
               'application/tar']
 
-CHUNK_SIZE = 0.5 * 1024 * 1024 # 0.5MB
-BATCH_MAX_SIZE = 5 * 1024 * 1024 # 5MB
+CHUNK_SIZE = 0.5 * 1024 * 1024  # 0.5MB
+BATCH_MAX_SIZE = 5 * 1024 * 1024  # 5MB
 DEST = 'google_drive'
 ERRORS = (AccessTokenCredentialsError)
 
@@ -45,7 +45,7 @@ class GoogleDrive(panoply.DataSource):
         self._total = len(self._files)
         self._service = None
         self._init_service(self.source.get('access_token'))
-        self.fh = None # file handler
+        self.fh = None  # file handler
         self.downloader = None
 
     @panoply.validate_token(REFRESH_URL, ERRORS)
@@ -57,7 +57,7 @@ class GoogleDrive(panoply.DataSource):
     @panoply.validate_token(REFRESH_URL, ERRORS, '_init_service')
     def read(self, n=None):
         if len(self._files) == 0:
-            return None # no files left, we're done
+            return None  # no files left, we're done
 
         file = self._files[0]
         count = self._total - len(self._files)
