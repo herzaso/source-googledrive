@@ -27,6 +27,7 @@ DEST = 'google_drive'
 ERRORS = (AccessTokenCredentialsError)
 NUM_RETRIES = 3
 
+
 class GoogleDrive(panoply.DataSource):
     def __init__(self, *args, **kwargs):
         super(GoogleDrive, self).__init__(*args, **kwargs)
@@ -78,7 +79,8 @@ class GoogleDrive(panoply.DataSource):
                 self.downloader._request = request
             else:
                 self.fh = io.BytesIO()
-                self.downloader = MediaIoBaseDownload(self.fh, request, CHUNK_SIZE)
+                self.downloader = MediaIoBaseDownload(
+                    self.fh, request, CHUNK_SIZE)
         else:
             # otherwise, just truncate the content - get ready to a new batch
             self.fh.seek(0)
