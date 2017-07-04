@@ -64,7 +64,7 @@ class GoogleDrive(panoply.DataSource):
         msg = '{}/{} files loaded'.format(count, self._total)
 
         # if we're not in the middle of downloading a file, start downloading
-        if not self.fh or not self.downloader:
+        if not self.fh or not self.downloader or self.fh.tell() == 0:
             request = self._service.files().get_media(fileId=file['id'])
             self.fh = io.BytesIO()
             self.downloader = MediaIoBaseDownload(self.fh, request, CHUNK_SIZE)
