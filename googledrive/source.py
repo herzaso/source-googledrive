@@ -25,7 +25,7 @@ CHUNK_SIZE = 0.5 * 1024 * 1024  # 0.5MB
 BATCH_MAX_SIZE = 5 * 1024 * 1024  # 5MB
 DEST = 'google_drive'
 ERRORS = (AccessTokenCredentialsError)
-
+NUM_RETRIES = 3
 
 class GoogleDrive(panoply.DataSource):
     def __init__(self, *args, **kwargs):
@@ -47,6 +47,7 @@ class GoogleDrive(panoply.DataSource):
         self._init_service(self.source.get('access_token'))
         self.fh = None  # file handler
         self.downloader = None
+        self.resume = False
 
     @panoply.validate_token(REFRESH_URL, ERRORS)
     def _init_service(self, token=None):
@@ -59,26 +60,38 @@ class GoogleDrive(panoply.DataSource):
         if len(self._files) == 0:
             return None  # no files left, we're done
 
+        # get the first file from the list of selected files
         file = self._files[0]
         count = self._total - len(self._files)
         msg = '{}/{} files loaded'.format(count, self._total)
 
         # if we're not in the middle of downloading a file, start downloading
-        if not self.fh or not self.downloader or self.fh.tell() == 0:
+        # `self.resume` can be `True` only if an exception was raised in the
+        # middle of downloading a file. In that case, we should resume the
+        # download (providing that the exception was resumable - auth related)
+        if not self.fh or not self.downloader or self.resume:
             request = self._service.files().get_media(fileId=file['id'])
-            self.fh = io.BytesIO()
-            self.downloader = MediaIoBaseDownload(self.fh, request, CHUNK_SIZE)
+            # if an exception was raised in the middle of the download process
+            # we simply attach the new `request` (having the new token) to the
+            # downloader. The file handler in this case doesn't change
+            if self.downloader and self.resume:
+                self.downloader._request = request
+            else:
+                self.fh = io.BytesIO()
+                self.downloader = MediaIoBaseDownload(self.fh, request, CHUNK_SIZE)
         else:
             # otherwise, just truncate the content - get ready to a new batch
             self.fh.seek(0)
             self.fh.truncate()
+
+        self.resume = True
 
         # read until BATCH_MAX_SIZE is reached
         # notice that the chunks are quite big
         done = False
         content = ''
         while not done and len(content) < BATCH_MAX_SIZE:
-            status, done = self.downloader.next_chunk()
+            status, done = self.downloader.next_chunk(num_retries=NUM_RETRIES)
             content = self.fh.getvalue()
             self.progress(count, self._total, msg)
 
@@ -89,6 +102,8 @@ class GoogleDrive(panoply.DataSource):
             self._files.pop()
             self.fh = None
             self.downloader = None
+
+        self.resume = False
 
         return content
 
