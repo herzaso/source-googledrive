@@ -11,6 +11,7 @@ from oauth2client.client import AccessTokenCredentialsError
 
 counter = 0
 
+
 def next_chunk(self, num_retries=1):
     global counter
 
